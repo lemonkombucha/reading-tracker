@@ -549,5 +549,6 @@ document.addEventListener('mousemove', e => {
   tipEl.style.left = Math.min(e.clientX + 12, innerWidth - tipEl.offsetWidth - 8) + 'px'; tipEl.style.top = e.clientY - 34 + 'px';
 });
 window.addEventListener('hashchange', render);
+document.body.insertAdjacentHTML('beforeend', '<p class="muted small" style="text-align:center;margin:24px 0">Marginalia build 6</p>');
 render();
 if (G.token) gPull().then(render, e => toast(e.message));
