@@ -70,7 +70,7 @@ function metrics() {
 function coach(m) {
   const tips = [];
   const want = S.books.filter(b => b.status === 'want');
-  if (!S.books.length) return [{ ico: '👋', t: 'Start by adding a book', b: 'Add what you are reading now, or import your whole Goodreads library from Sync & settings.' }];
+  if (!S.books.length) return [{ ico: '👋', t: 'Start by adding a book', b: 'Add what you are reading now — search by title to find it.' }];
   if (m.remaining === 0) tips.push({ ico: '🏆', t: `Goal reached — ${m.done} books in ${m.Y}`, b: 'Raise the goal if you want a new target for the rest of the year.' });
   else if (m.diff <= -1) tips.push({ ico: '⏱️', t: `Catch-up plan: ${m.dailyTarget} pages a day`, b: `You are ${Math.ceil(-m.diff)} book${Math.ceil(-m.diff) > 1 ? 's' : ''} behind pace. ${m.dailyTarget} pages daily${m.minsPerDay ? ` (about ${m.minsPerDay} min at your speed)` : ''} gets you to ${m.goal} by Dec 31. Two short sessions are easier to keep than one long one.` });
   if (!m.todayPages && m.streak > 0) tips.push({ ico: '🔥', t: `Keep your ${m.streak}-day streak alive`, b: 'Nothing logged today yet. Even 10 pages counts — consistency beats marathon sessions.' });
@@ -243,31 +243,23 @@ function viewStats() {
 }
 const PASSAGE = `Reading faster is less about moving your eyes quickly and more about removing the small habits that slow you down. The first is regression: the urge to jump back and reread a line you have already passed. Most of the time the meaning would have arrived anyway a sentence later, so trust the page and keep going. Running a finger or a pen under the line gives your eyes something to follow and quietly discourages them from wandering backward. The second habit is reading every word at the same weight. Good readers take in phrases rather than single words, and they slow down only where the ideas get dense. A chapter of narrative can go by quickly, while one difficult paragraph deserves a second, deliberate pass. The third habit has nothing to do with technique at all. It is simply attention. A phone in another room is worth more than any speed method, because ten uninterrupted minutes cover more ground than thirty minutes of half reading. Finally, speed follows volume. People who read a little every day become faster without trying, because familiar words and familiar structures stop needing effort. So set a modest daily target, protect the time, give up on books that bore you, and let the pace take care of itself.`;
 
+const maskEmail = e => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}${'•'.repeat(Math.max(3, u.length - 2))}@${d}` : ''; };
 function viewSettings() {
-  const cid = clientId();
-  return `<h1>Sync &amp; settings</h1>
-  <div class="grid two" style="margin-top:16px">
-  <section class="card"><h3>Goodreads</h3>
-    <p class="muted small" style="margin-top:6px">Goodreads closed its public API in 2020, so no site can log in to it directly. The supported route is its library export, which carries your shelves, ratings, reviews and dates.</p>
-    <ol class="small"><li>Open <a href="https://www.goodreads.com/review/import" target="_blank" rel="noopener">goodreads.com/review/import</a> and choose <b>Export Library</b>.</li><li>Upload the downloaded CSV here. Re-importing later only adds or updates, never duplicates.</li></ol>
-    <label>Goodreads CSV file<input type="file" id="grfile" accept=".csv"></label>
-    <label>Your Goodreads profile link (optional)<input id="grurl" placeholder="https://www.goodreads.com/user/show/…" value="${esc(S.settings.goodreadsUrl)}"></label>
-    <div class="row"><button class="btn sm" data-action="export-gr">Export as Goodreads CSV</button>${S.settings.goodreadsUrl ? `<a class="btn sm" href="${esc(S.settings.goodreadsUrl)}" target="_blank" rel="noopener">Open my Goodreads</a>` : ''}</div>
-  </section>
-  <section class="card"><h3>Sign in with Google</h3>
-    <p class="muted small" style="margin-top:6px">Signing in stores your library in a private app folder in <i>your own</i> Google Drive, so it follows you across devices. Anyone who visits can sign in and keep their own separate library. <a href="privacy.html">Privacy policy</a></p>
-    ${G.token ? `<p><span class="pill">Connected</span> <span class="muted small">${G.status || 'Changes sync automatically.'}</span></p><div class="row"><button class="btn sm" data-action="g-sync">Sync now</button><button class="btn sm" data-action="g-out">Sign out</button></div>`
-      : cid ? `<button class="btn primary" data-action="g-in">Sign in with Google</button>` : `<p class="small">Not set up yet — this needs a free Google OAuth Client ID (steps in the README).</p>`}
-    <label style="margin-top:12px">Google OAuth Client ID<input id="gcid" placeholder="1234-abc.apps.googleusercontent.com" value="${esc(S.settings.clientId)}"></label>
-  </section>
-  <section class="card"><h3>Reading</h3>
-    <div class="f2" style="margin-top:8px"><label>${new Date().getFullYear()} goal (books)<input id="setgoal" type="number" min="1" value="${goalFor(new Date().getFullYear())}"></label>
-    <label>Words per page (for wpm)<input id="setwpp" type="number" min="100" max="600" value="${S.settings.wpp}"></label></div>
-  </section>
-  <section class="card"><h3>Backup</h3><p class="muted small" style="margin-top:6px">Without Google sign-in, your data lives only in this browser. Download a backup now and then.</p>
-    <div class="row"><button class="btn sm" data-action="export-json">Download backup</button><label class="btn sm" style="margin:0;color:var(--ink)">Restore backup<input type="file" id="jsonfile" accept=".json" hidden></label>
-    <button class="btn sm danger" data-action="wipe">Erase everything</button></div>
-  </section></div>`;
+  if (!G.token) return `<h1>Settings</h1>
+  <section class="card" style="margin-top:16px;max-width:460px"><h3>Sign in</h3>
+    <p class="muted small" style="margin:6px 0 14px">Sign in to keep your library on all your devices. <a href="privacy.html">Privacy policy</a></p>
+    <button class="btn primary" data-action="g-in">Sign in with Google</button></section>`;
+  const pr = G.profile || {}, name = S.settings.name || pr.name || 'Reader', n = S.books.length;
+  return `<h1>Settings</h1>
+  <section class="card" style="margin-top:16px;max-width:460px">
+    <div style="display:flex;gap:14px;align-items:center">
+      ${pr.picture ? `<img src="${esc(pr.picture)}" alt="" referrerpolicy="no-referrer" style="width:56px;height:56px;border-radius:50%">` : ''}
+      <div><div class="title" style="font-size:20px">${esc(name)}</div><div class="muted small">${esc(maskEmail(pr.email))}</div></div>
+    </div>
+    <p style="margin:14px 0"><b>${n}</b> book${n === 1 ? '' : 's'} logged</p>
+    <p class="muted small">${esc(G.status || 'Changes sync automatically.')}</p>
+    <div class="row"><button class="btn sm" data-action="edit-name">Edit name</button><button class="btn sm" data-action="g-out">Sign out</button></div>
+  </section>`;
 }
 
 const VIEWS = { home: viewHome, library: viewLibrary, quotes: viewQuotes, stats: viewStats, settings: viewSettings };
@@ -424,8 +416,8 @@ const loadGsi = () => new Promise((res, rej) => { if (window.google?.accounts?.o
 async function gSignIn() {
   try {
     await loadGsi();
-    G.client = google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'https://www.googleapis.com/auth/drive.appdata',
-      callback: async r => { if (r.error) return toast('Google sign-in failed: ' + r.error); G.token = r.access_token; try { await gPull(); } catch (e) { toast(e.message); } render(); },
+    G.client = google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'openid email profile https://www.googleapis.com/auth/drive.appdata',
+      callback: async r => { if (r.error) return toast('Google sign-in failed: ' + r.error); G.token = r.access_token; try { G.profile = await (await gFetch('https://www.googleapis.com/oauth2/v3/userinfo')).json(); } catch (e) { G.profile = null; } try { await gPull(); } catch (e) { toast(e.message); } render(); },
       error_callback: e => toast('Google sign-in was cancelled or blocked (' + (e.type || 'error') + ').') });
     G.client.requestAccessToken();
   } catch (e) { toast(e.message); }
@@ -486,7 +478,8 @@ const ACT = {
   'export-json': () => download(`marginalia-backup-${today()}.json`, JSON.stringify(S, null, 1), 'application/json'),
   'wipe': () => { if (confirm('Erase every book, session and quote from this browser? This cannot be undone.')) { S = blank(); save(); } },
   'g-in': () => gSignIn(),
-  'g-out': () => { if (window.google?.accounts?.oauth2 && G.token) google.accounts.oauth2.revoke(G.token); G.token = G.fileId = null; render(); },
+  'edit-name': () => { const v = prompt('Name to show on your profile', S.settings.name || G.profile?.name || ''); if (v !== null) { S.settings.name = v.trim(); save(); } },
+  'g-out': () => { if (window.google?.accounts?.oauth2 && G.token) google.accounts.oauth2.revoke(G.token); G.token = G.fileId = G.profile = null; render(); },
   'g-sync': () => gPull().then(() => { render(); toast('Synced.'); }, e => toast(e.message)),
 };
 let speedStart = 0;
