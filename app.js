@@ -142,6 +142,7 @@ function viewHome() {
   const q = S.quotes.length ? S.quotes[(m.doy + S.quotes.length) % S.quotes.length] : null;
   const tips = coach(m);
   return `
+  ${clientId() && !G.token ? `<div class="card spread" style="padding:10px 16px;margin-bottom:14px"><span class="small">Not syncing — sign in to keep this library on all your devices.</span><button class="btn sm primary" data-action="g-in">Sign in with Google</button></div>` : ''}
   <section class="card hero">
     ${ring(m.done / m.goal, m.done, `of ${m.goal} books`)}
     <div class="txt">
