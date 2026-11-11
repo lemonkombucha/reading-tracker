@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marginalia — reading tracker</title>
+<meta name="description" content="Track your reading goal, pace, speed, shelves, reviews and quotes. Imports from Goodreads.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#home">Marginalia</a>
+  <nav id="nav">
+    <a href="#home">Today</a>
+    <a href="#library">Library</a>
+    <a href="#quotes">Quotes</a>
+    <a href="#stats">Stats</a>
+    <a href="#settings">Sync &amp; settings</a>
+  </nav>
+  <button class="btn primary" data-action="add-book">+ Add book</button>
+</header>
+<main id="view"></main>
+<div id="timerbar" hidden></div>
+<dialog id="dlg"></dialog>
+<div id="toast" role="status" hidden></div>
+<div id="tip" hidden></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
