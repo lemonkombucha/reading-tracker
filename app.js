@@ -142,7 +142,7 @@ function viewHome() {
   const q = S.quotes.length ? S.quotes[(m.doy + S.quotes.length) % S.quotes.length] : null;
   const tips = coach(m);
   return `
-  ${clientId() && !G.token ? `<div class="card spread" style="padding:10px 16px;margin-bottom:14px"><span class="small">Not syncing — sign in to keep this library on all your devices.</span><button class="btn sm primary" data-action="g-in">Sign in with Google</button></div>` : ''}
+  ${clientId() && !G.token ? `<div class="card spread" style="padding:10px 16px;margin-bottom:14px"><span class="small">${G.profile ? 'Sync is paused — reconnect to update your other devices.' : 'Not syncing — sign in to keep this library on all your devices.'}</span><button class="btn sm primary" data-action="g-in">${G.profile ? 'Reconnect' : 'Sign in with Google'}</button></div>` : ''}
   <section class="card hero">
     ${ring(m.done / m.goal, m.done, `of ${m.goal} books`)}
     <div class="txt">
@@ -245,7 +245,7 @@ const PASSAGE = `Reading faster is less about moving your eyes quickly and more 
 
 const maskEmail = e => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}${'•'.repeat(Math.max(3, u.length - 2))}@${d}` : ''; };
 function viewSettings() {
-  if (!G.token) return `<h1>Settings</h1>
+  if (!G.profile) return `<h1>Settings</h1>
   <section class="card" style="margin-top:16px;max-width:460px"><h3>Sign in</h3>
     <p class="muted small" style="margin:6px 0 14px">Sign in to keep your library on all your devices. <a href="privacy.html">Privacy policy</a></p>
     <button class="btn primary" data-action="g-in">Sign in with Google</button></section>`;
@@ -257,8 +257,8 @@ function viewSettings() {
       <div><div class="title" style="font-size:20px">${esc(name)}</div><div class="muted small">${esc(maskEmail(pr.email))}</div></div>
     </div>
     <p style="margin:14px 0"><b>${n}</b> book${n === 1 ? '' : 's'} logged</p>
-    <p class="muted small">${esc(G.status || 'Changes sync automatically.')}</p>
-    <div class="row"><button class="btn sm" data-action="edit-name">Edit name</button><button class="btn sm" data-action="g-out">Sign out</button></div>
+    <p class="muted small">${G.token ? esc(G.status || 'Changes sync automatically.') : 'Sync is paused because the Google session timed out. Your books are still saved on this device.'}</p>
+    <div class="row">${G.token ? '' : '<button class="btn sm primary" data-action="g-in">Reconnect</button>'}<button class="btn sm" data-action="edit-name">Edit name</button><button class="btn sm" data-action="g-out">Sign out</button></div>
   </section>`;
 }
 
@@ -409,22 +409,33 @@ function exportGoodreads() {
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
 
 // ---------- Google Drive sync (optional) ----------
-const G = { token: null, fileId: null, status: '', client: null };
+const G = { token: null, fileId: null, status: '', client: null, profile: null };
+const AUTH = 'marginalia.auth', DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+try { const a = JSON.parse(localStorage.getItem(AUTH) || 'null'); if (a) { G.profile = a.profile || null; if (a.token && a.exp > Date.now()) { G.token = a.token; G.exp = a.exp; } } } catch (e) { /* ignore */ }
+function saveAuth() { try { G.profile ? localStorage.setItem(AUTH, JSON.stringify({ profile: G.profile, token: G.token, exp: G.exp || 0 })) : localStorage.removeItem(AUTH); } catch (e) { /* ignore */ } }
 const DRIVE = 'https://www.googleapis.com/drive/v3/files', UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const clientId = () => S.settings.clientId || (window.READTRACK_CONFIG || {}).googleClientId || '';
 const loadGsi = () => new Promise((res, rej) => { if (window.google?.accounts?.oauth2) return res(); const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = res; s.onerror = () => rej(new Error('Could not load Google sign-in')); document.head.appendChild(s); });
 async function gSignIn() {
   try {
     await loadGsi();
-    G.client = google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'openid email profile https://www.googleapis.com/auth/drive.appdata',
-      callback: async r => { if (r.error) return toast('Google sign-in failed: ' + r.error); G.token = r.access_token; try { G.profile = await (await gFetch('https://www.googleapis.com/oauth2/v3/userinfo')).json(); } catch (e) { G.profile = null; } try { await gPull(); } catch (e) { toast(e.message); } render(); },
+    G.client = google.accounts.oauth2.initTokenClient({ client_id: clientId(), scope: 'openid email profile ' + DRIVE_SCOPE,
+      callback: async r => {
+        if (r.error) return toast('Google sign-in failed: ' + r.error);
+        G.token = r.access_token; G.exp = Date.now() + ((+r.expires_in || 3600) - 60) * 1000;
+        try { const pr = await (await gFetch('https://www.googleapis.com/oauth2/v3/userinfo')).json(); G.profile = { name: pr.name || '', email: pr.email || '', picture: pr.picture || '' }; }
+        catch (e) { G.profile = G.profile || { name: '', email: '', picture: '' }; }
+        saveAuth(); render();
+        if (!google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE)) return toast('Signed in, but Google Drive access was not ticked, so nothing can sync. Sign in again and tick the Drive box.');
+        try { await gPull(); } catch (e) { toast(e.message); } render();
+      },
       error_callback: e => toast('Google sign-in was cancelled or blocked (' + (e.type || 'error') + ').') });
-    G.client.requestAccessToken();
+    G.client.requestAccessToken(G.profile?.email ? { prompt: '', login_hint: G.profile.email } : {});
   } catch (e) { toast(e.message); }
 }
 async function gFetch(url, opt = {}) {
   const r = await fetch(url, { ...opt, headers: { ...(opt.headers || {}), Authorization: 'Bearer ' + G.token } });
-  if (r.status === 401) { G.token = null; render(); throw new Error('Google session expired — sign in again.'); }
+  if (r.status === 401) { G.token = null; saveAuth(); render(); throw new Error('Google session expired — sign in again.'); }
   if (!r.ok) throw new Error('Google Drive error ' + r.status);
   return r;
 }
@@ -479,7 +490,7 @@ const ACT = {
   'wipe': () => { if (confirm('Erase every book, session and quote from this browser? This cannot be undone.')) { S = blank(); save(); } },
   'g-in': () => gSignIn(),
   'edit-name': () => { const v = prompt('Name to show on your profile', S.settings.name || G.profile?.name || ''); if (v !== null) { S.settings.name = v.trim(); save(); } },
-  'g-out': () => { if (window.google?.accounts?.oauth2 && G.token) google.accounts.oauth2.revoke(G.token); G.token = G.fileId = G.profile = null; render(); },
+  'g-out': () => { G.token = G.fileId = G.profile = null; G.status = ''; saveAuth(); render(); },
   'g-sync': () => gPull().then(() => { render(); toast('Synced.'); }, e => toast(e.message)),
 };
 let speedStart = 0;
@@ -539,3 +550,4 @@ document.addEventListener('mousemove', e => {
 });
 window.addEventListener('hashchange', render);
 render();
+if (G.token) gPull().then(render, e => toast(e.message));
