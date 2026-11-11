@@ -121,3 +121,7 @@ dialog h2 { margin-top: 0; }
   .top { flex-wrap: wrap; gap: 8px; padding: 8px 12px; } #nav { order: 3; flex-basis: 100%; }
   .brand { flex: 1; } .f3 { grid-template-columns: 1fr 1fr; } .hero h1 { font-size: 24px; }
 }
+
+.wisdom { margin: 4px auto 22px; max-width: 720px; text-align: center; }
+.wisdom blockquote { font-style: italic; font-size: 19px; }
+.wisdom figcaption { margin-top: 6px; color: var(--muted); font-size: 13px; letter-spacing: .04em; }

@@ -134,6 +134,39 @@ function heatmap(m) {
   return `<div class="heat chart">${s}</svg></div>`;
 }
 
+// ---------- hourly quote ----------
+const WISDOM = [
+  ['My library is an archive of longings.', 'Susan Sontag'],
+  ['Reading usually precedes writing. And the impulse to write is almost always fired by reading.', 'Susan Sontag'],
+  ['I can never read all the books I want; I can never be all the people I want and live all the lives I want.', 'Sylvia Plath'],
+  ['Poetry is not a luxury.', 'Audre Lorde'],
+  ['Second-hand books are wild books, homeless books.', 'Virginia Woolf'],
+  ['The only advice, indeed, that one person can give another about reading is to take no advice.', 'Virginia Woolf'],
+  ['A book must be the axe for the frozen sea within us.', 'Franz Kafka'],
+  ['You think your pain and your heartbreak are unprecedented in the history of the world, but then you read.', 'James Baldwin'],
+  ['If there\'s a book that you want to read, but it hasn\'t been written yet, then you must write it.', 'Toni Morrison'],
+  ['I have always imagined that Paradise will be a kind of library.', 'Jorge Luis Borges'],
+  ['We tell ourselves stories in order to live.', 'Joan Didion'],
+  ['We read books to find out who we are.', 'Ursula K. Le Guin'],
+  ['A classic is a book that has never finished saying what it has to say.', 'Italo Calvino'],
+  ['If one cannot enjoy reading a book over and over again, there is no use in reading it at all.', 'Oscar Wilde'],
+  ['I declare after all there is no enjoyment like reading!', 'Jane Austen'],
+  ['There is no Frigate like a Book to take us Lands away.', 'Emily Dickinson'],
+  ['Think before you speak. Read before you think.', 'Fran Lebowitz'],
+  ['Curiously enough, one cannot read a book: one can only reread it.', 'Vladimir Nabokov'],
+  ['If you only read the books that everyone else is reading, you can only think what everyone else is thinking.', 'Haruki Murakami'],
+  ['A word after a word after a word is power.', 'Margaret Atwood'],
+  ['Never trust anyone who has not brought a book with them.', 'Lemony Snicket'],
+  ['People say that life is the thing, but I prefer reading.', 'Logan Pearsall Smith'],
+  ['A book is a heart that only beats in the chest of another.', 'Rebecca Solnit'],
+  ['Reading is that fruitful miracle of a communication in the midst of solitude.', 'Marcel Proust'],
+  ['Attention is the rarest and purest form of generosity.', 'Simone Weil'],
+];
+function hourlyQuote() {
+  const [q, who] = WISDOM[Math.floor(Date.now() / 36e5) % WISDOM.length];
+  return `<figure class="wisdom"><blockquote>“${esc(q)}”</blockquote><figcaption>— ${esc(who)}</figcaption></figure>`;
+}
+
 // ---------- views ----------
 function viewHome() {
   const m = metrics(), behind = m.diff <= -1, ahead = m.diff >= 1;
@@ -142,6 +175,7 @@ function viewHome() {
   const q = S.quotes.length ? S.quotes[(m.doy + S.quotes.length) % S.quotes.length] : null;
   const tips = coach(m);
   return `
+  ${hourlyQuote()}
   ${clientId() && !G.token ? `<div class="card spread" style="padding:10px 16px;margin-bottom:14px"><span class="small">${G.profile ? 'Sync is paused — reconnect to update your other devices.' : 'Not syncing — sign in to keep this library on all your devices.'}</span><button class="btn sm primary" data-action="g-in">${G.profile ? 'Reconnect' : 'Sign in with Google'}</button></div>` : ''}
   <section class="card hero">
     ${ring(m.done / m.goal, m.done, `of ${m.goal} books`)}
@@ -549,6 +583,6 @@ document.addEventListener('mousemove', e => {
   tipEl.style.left = Math.min(e.clientX + 12, innerWidth - tipEl.offsetWidth - 8) + 'px'; tipEl.style.top = e.clientY - 34 + 'px';
 });
 window.addEventListener('hashchange', render);
-document.body.insertAdjacentHTML('beforeend', '<p class="muted small" style="text-align:center;margin:24px 0">Marginalia build 6</p>');
+document.body.insertAdjacentHTML('beforeend', '<p class="muted small" style="text-align:center;margin:24px 0">Marginalia build 7</p>');
 render();
 if (G.token) gPull().then(render, e => toast(e.message));
