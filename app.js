@@ -254,7 +254,7 @@ function viewSettings() {
     <div class="row"><button class="btn sm" data-action="export-gr">Export as Goodreads CSV</button>${S.settings.goodreadsUrl ? `<a class="btn sm" href="${esc(S.settings.goodreadsUrl)}" target="_blank" rel="noopener">Open my Goodreads</a>` : ''}</div>
   </section>
   <section class="card"><h3>Sign in with Google</h3>
-    <p class="muted small" style="margin-top:6px">Signing in stores your library in a private app folder in <i>your own</i> Google Drive, so it follows you across devices. Anyone who visits can sign in and keep their own separate library.</p>
+    <p class="muted small" style="margin-top:6px">Signing in stores your library in a private app folder in <i>your own</i> Google Drive, so it follows you across devices. Anyone who visits can sign in and keep their own separate library. <a href="privacy.html">Privacy policy</a></p>
     ${G.token ? `<p><span class="pill">Connected</span> <span class="muted small">${G.status || 'Changes sync automatically.'}</span></p><div class="row"><button class="btn sm" data-action="g-sync">Sync now</button><button class="btn sm" data-action="g-out">Sign out</button></div>`
       : cid ? `<button class="btn primary" data-action="g-in">Sign in with Google</button>` : `<p class="small">Not set up yet — this needs a free Google OAuth Client ID (steps in the README).</p>`}
     <label style="margin-top:12px">Google OAuth Client ID<input id="gcid" placeholder="1234-abc.apps.googleusercontent.com" value="${esc(S.settings.clientId)}"></label>
