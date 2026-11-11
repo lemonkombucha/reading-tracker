@@ -284,13 +284,23 @@ function openDlg(html) { dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); }
 const closeBtn = `<button type="button" class="btn" data-action="close">Cancel</button>`;
 
 function dlgAddBook() {
-  openDlg(`<h2>Add a book</h2><input id="olq" type="search" placeholder="Search by title, author or ISBN" autofocus>
+  openDlg(`<h2>Add a book</h2><input id="olq" type="search" placeholder="Search by title, author or ISBN" value="${esc(olQuery)}" autofocus>
   <div id="olres" style="margin:8px 0;max-height:300px;overflow:auto"><p class="muted small">Type at least 3 letters. Results come from Open Library.</p></div>
-  <label>Add to shelf<select id="addstatus">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === 'want' ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-  <details><summary class="small">Or add manually</summary><form data-form="manual" style="margin-top:8px"><div class="f3"><label>Title<input name="title" required></label><label>Author<input name="author"></label><label>Pages<input name="pages" type="number" min="1"></label></div><button class="btn sm primary">Add</button></form></details>
+  <details><summary class="small">Or add manually</summary><form data-form="manual" style="margin-top:8px"><div class="f2"><label>Title<input name="title" required></label><label>Author<input name="author"></label><label>Pages<input name="pages" type="number" min="1"></label><label>Shelf<select name="status">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === 'want' ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div><button class="btn sm primary">Save book</button></form></details>
   <div class="dfoot"><span></span>${closeBtn}</div>`);
+  if (olQuery.length >= 3) olSearch(olQuery);
 }
-let olTimer, olResults = [];
+function dlgConfirmBook(i) {
+  const d = olResults[i]; if (!d) return;
+  const cov = d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : '';
+  openDlg(`<form data-form="confirm"><h2>Check the details</h2><div style="display:flex;gap:16px">${cov ? `<img class="cover lg" src="${cov}" alt="">` : ''}
+  <div style="flex:1"><label>Title<input name="title" value="${esc(d.title)}" required></label><label>Author<input name="author" value="${esc((d.author_name || []).slice(0, 2).join(', '))}"></label></div></div>
+  <div class="f2"><label>Shelf<select name="status" autofocus>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === 'want' ? 'selected' : ''}>${v}</option>`).join('')}</select></label><label>Pages<input name="pages" type="number" min="0" value="${d.number_of_pages_median || ''}"></label>
+  <label>Current page (if reading)<input name="currentPage" type="number" min="0"></label><label>Date finished (if read)<input name="finished" type="date" max="${today()}"></label></div>
+  <input type="hidden" name="cover" value="${cov}"><input type="hidden" name="isbn" value="${esc((d.isbn || [])[0] || '')}">
+  <div class="dfoot"><button type="button" class="btn" data-action="add-book">← Back to results</button><div class="row">${closeBtn}<button class="btn primary">Save book</button></div></div></form>`);
+}
+let olTimer, olResults = [], olQuery = '';
 async function olSearch(q) {
   const box = $('#olres'); if (!box) return;
   box.innerHTML = '<p class="muted small">Searching…</p>';
@@ -454,7 +464,7 @@ const ACT = {
   'add-book': () => dlgAddBook(),
   'close': () => dlg.close(),
   'open-book': id => dlgBook(id),
-  'pick-ol': i => { const d = olResults[i]; if (!d) return; addBook({ title: d.title, author: (d.author_name || []).slice(0, 2).join(', '), pages: d.number_of_pages_median || 0, cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : '', isbn: (d.isbn || [])[0] || '', status: $('#addstatus').value }); dlg.close(); save(); toast(`Added "${d.title}"`); },
+  'pick-ol': i => dlgConfirmBook(i),
   'rate': n => { const inp = $('#rate input'); n = +n === +inp.value ? 0 : +n; inp.value = n; document.querySelectorAll('#rate button').forEach((b, i) => b.classList.toggle('on', i < n)); },
   'del-book': id => { if (!confirm('Delete this book with its sessions and quotes?')) return; S.books = S.books.filter(b => b.id !== id); S.sessions = S.sessions.filter(s => s.bookId !== id); S.quotes = S.quotes.filter(q => q.bookId !== id); if (S.timer?.bookId === id) S.timer = null; dlg.close(); save(); },
   'log': id => dlgLog(id),
@@ -487,7 +497,13 @@ document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]'); if (!f) return;
   e.preventDefault();
   const v = Object.fromEntries(new FormData(f)), kind = f.dataset.form;
-  if (kind === 'manual') { addBook({ title: v.title.trim(), author: v.author.trim(), pages: num(v.pages), status: $('#addstatus').value }); dlg.close(); save(); toast('Book added.'); }
+  if (kind === 'manual') { addBook({ title: v.title.trim(), author: v.author.trim(), pages: num(v.pages), status: v.status }); dlg.close(); save(); toast('Book added.'); }
+  if (kind === 'confirm') {
+    const o = { title: v.title.trim(), author: v.author.trim(), pages: num(v.pages), status: v.status, cover: v.cover, isbn: v.isbn };
+    if (v.status === 'read' && v.finished) o.finished = v.finished;
+    if (v.status === 'reading' || v.status === 'dnf') o.currentPage = num(v.currentPage);
+    addBook(o); olQuery = ''; olResults = []; dlg.close(); save(); toast(`Added "${o.title}" to ${STATUS[o.status]}.`);
+  }
   if (kind === 'book') {
     const b = book(f.dataset.id), was = b.status, t = today();
     Object.assign(b, { title: v.title.trim(), author: v.author.trim(), status: v.status, pages: num(v.pages), currentPage: num(v.currentPage), started: v.started, finished: v.finished, rating: num(v.rating), review: v.review.trim(), shelves: v.shelves.split(',').map(s => s.trim()).filter(Boolean) });
@@ -500,7 +516,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   const id = e.target.id;
-  if (id === 'olq') { clearTimeout(olTimer); const q = e.target.value.trim(); if (q.length >= 3) olTimer = setTimeout(() => olSearch(q), 350); }
+  if (id === 'olq') { clearTimeout(olTimer); const q = olQuery = e.target.value.trim(); if (q.length >= 3) olTimer = setTimeout(() => olSearch(q), 350); }
   if (id === 'libq') { libQuery = e.target.value; $('#libgrid').innerHTML = libGrid(); }
   if (id === 'quoteq') { quoteQuery = e.target.value; const pos = e.target.selectionStart; render(); const n = $('#quoteq'); n.focus(); n.setSelectionRange(pos, pos); }
 });
